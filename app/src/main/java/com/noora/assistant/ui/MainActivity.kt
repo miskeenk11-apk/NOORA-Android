@@ -35,11 +35,12 @@ class MainActivity: AppCompatActivity() {
     private var voiceBusy = false
     private var wakeWordEnabled = false
     private val sessionAuthorization = NooraSessionAuthorization()
+    private lateinit var avatar: NooraAvatarView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val avatar = NooraAvatarView(this).apply {
+            avatar = NooraAvatarView(this).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 420)
             setState("Ready")
         }

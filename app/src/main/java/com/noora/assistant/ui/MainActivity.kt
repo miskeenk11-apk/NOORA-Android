@@ -29,18 +29,18 @@ class MainActivity: AppCompatActivity() {
     private lateinit var wakeWord: com.noora.assistant.voice.NooraWakeWordEngine
     private lateinit var speaker: NooraTextToSpeech
     private lateinit var coordinator: NooraConversationCoordinator
+    private lateinit var avatar: NooraAvatarView
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
     private val mainHandler = Handler(Looper.getMainLooper())
     private var continuousConversation = false
     private var voiceBusy = false
     private var wakeWordEnabled = false
     private val sessionAuthorization = NooraSessionAuthorization()
-    private lateinit var avatar: NooraAvatarView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-            avatar = NooraAvatarView(this).apply {
+        avatar = NooraAvatarView(this).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 420)
             setState("Ready")
         }
@@ -168,7 +168,7 @@ class MainActivity: AppCompatActivity() {
             addView(guest)
             addView(biometric)
         })
-        permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
+        permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_CONTACTS))
     }
 
     private fun startListening(status: TextView) {

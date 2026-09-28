@@ -35,6 +35,7 @@ class MainActivity: AppCompatActivity() {
     private var continuousConversation = false
     private var voiceBusy = false
     private var wakeWordEnabled = false
+    private var listeningRestartPending = false
     private val sessionAuthorization = NooraSessionAuthorization()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,12 +56,15 @@ class MainActivity: AppCompatActivity() {
         speaker.setStatusListener { message -> runOnUiThread {
             if (message == "Voice ready") status.text = "NOORA\n\nReady.\nVoice: Ready"
         } }
+
         listener = NooraSpeechRecognizer(this)
         wakeWord = com.noora.assistant.voice.NooraWakeWordEngine(this)
+
         speaker.setCompletionListener {
             voiceBusy = false
+
             if (continuousConversation) {
-                mainHandler.postDelayed({ startListening(status) }, 350L)
+                scheduleListening(status, 500L)
             }
         }
 
@@ -68,8 +72,13 @@ class MainActivity: AppCompatActivity() {
             gatewayUrl = "https://YOUR-NOORA-GATEWAY.example.com",
             gatewayToken = null
         )
+
         coordinator = NooraConversationCoordinator(
-            NooraConnectivity(this), NooraMemoryStore(this), speaker, gateway, NooraPhoneControl(this)
+            NooraConnectivity(this),
+            NooraMemoryStore(this),
+            speaker,
+            gateway,
+            NooraPhoneControl(this)
         ) { message -> runOnUiThread {
             status.text = "NOORA\n\n$message"
             avatar.setState(when {
@@ -82,18 +91,43 @@ class MainActivity: AppCompatActivity() {
 
         val listen = Button(this).apply {
             text = "TALK TO NOORA"
+
             setOnClickListener {
                 continuousConversation = !continuousConversation
-                text = if (continuousConversation) "STOP CONVERSATION" else "TALK TO NOORA"
-                if (continuousConversation) startListening(status) else listener.cancel()
+
+                text = if (continuousConversation) {
+                    "STOP CONVERSATION"
+                } else {
+                    "TALK TO NOORA"
+                }
+
+                if (continuousConversation) {
+                    listeningRestartPending = false
+                    startListening(status)
+                } else {
+                    listeningRestartPending = false
+                    voiceBusy = false
+                    mainHandler.removeCallbacksAndMessages(null)
+                    listener.cancel()
+
+                    status.text = "NOORA\n\nReady"
+                    avatar.setState("Ready")
+                }
             }
         }
 
         val security = Button(this).apply {
             text = "SECURITY: OFF"
+
             setOnClickListener {
                 sessionAuthorization.setRecognitionEnabled(!sessionAuthorization.recognitionEnabled)
-                text = if (sessionAuthorization.recognitionEnabled) "SECURITY: ON" else "SECURITY: OFF"
+
+                text = if (sessionAuthorization.recognitionEnabled) {
+                    "SECURITY: ON"
+                } else {
+                    "SECURITY: OFF"
+                }
+
                 status.text = if (sessionAuthorization.recognitionEnabled) {
                     "NOORA\n\nSecurity ON\nPlease identify/authorize the current user."
                 } else {
@@ -104,6 +138,7 @@ class MainActivity: AppCompatActivity() {
 
         val owner = Button(this).apply {
             text = "I AM OWNER"
+
             setOnClickListener {
                 sessionAuthorization.authorizeOwner()
                 status.text = "NOORA\n\nOwner authorized for this session."
@@ -112,6 +147,7 @@ class MainActivity: AppCompatActivity() {
 
         val guest = Button(this).apply {
             text = "AUTHORIZE GUEST"
+
             setOnClickListener {
                 sessionAuthorization.authorizeGuest()
                 status.text = "NOORA\n\nAuthorized guest for this session."
@@ -120,39 +156,65 @@ class MainActivity: AppCompatActivity() {
 
         val biometric = Button(this).apply {
             text = "STRONG AUTH TEST"
-            setOnClickListener { showBiometricPrompt(status) }
+            setOnClickListener {
+                showBiometricPrompt(status)
+            }
         }
 
         val wake = Button(this).apply {
             text = "WAKE WORD: OFF"
+
             setOnClickListener {
                 wakeWordEnabled = !wakeWordEnabled
-                text = if (wakeWordEnabled) "WAKE WORD: ON" else "WAKE WORD: OFF"
+
+                text = if (wakeWordEnabled) {
+                    "WAKE WORD: ON"
+                } else {
+                    "WAKE WORD: OFF"
+                }
+
                 if (wakeWordEnabled) {
                     continuousConversation = false
+                    listeningRestartPending = false
+                    voiceBusy = false
                     listen.text = "TALK TO NOORA"
+                    mainHandler.removeCallbacksAndMessages(null)
                     listener.cancel()
+
                     status.text = "NOORA\n\nSay: NOORA"
+
                     wakeWord.start(
                         onWake = { command ->
                             wakeWord.stop()
                             continuousConversation = true
+
                             runOnUiThread {
                                 listen.text = "STOP CONVERSATION"
                                 status.text = "NOORA\n\nAwake"
-                                if (command.isBlank()) startListening(status)
-                                else {
+
+                                if (command.isBlank()) {
+                                    startListening(status)
+                                } else {
                                     voiceBusy = true
                                     status.text = "NOORA\n\nYou: $command\n\nThinking..."
+                                    avatar.setState("Thinking")
                                     coordinator.handleTranscript(command)
                                 }
                             }
                         },
-                        onState = { state -> runOnUiThread { status.text = "NOORA\n\nWake Word\n$state" } }
+                        onState = { state ->
+                            runOnUiThread {
+                                status.text = "NOORA\n\nWake Word\n$state"
+                            }
+                        }
                     )
                 } else {
                     wakeWord.stop()
+                    listeningRestartPending = false
+                    voiceBusy = false
+                    mainHandler.removeCallbacksAndMessages(null)
                     status.text = "NOORA\n\nReady"
+                    avatar.setState("Ready")
                 }
             }
         }
@@ -168,60 +230,139 @@ class MainActivity: AppCompatActivity() {
             addView(guest)
             addView(biometric)
         })
-        permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_CONTACTS))
+
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.CAMERA,
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.READ_CONTACTS
+            )
+        )
     }
 
     private fun startListening(status: TextView) {
-        if (!continuousConversation || voiceBusy || !listener.isAvailable()) return
+        if (!continuousConversation || voiceBusy || listeningRestartPending || !listener.isAvailable()) {
+            return
+        }
+
+        listeningRestartPending = false
+        voiceBusy = true
+
         listener.listen(
             languageTag = "en-US",
+
             onText = { transcript ->
                 voiceBusy = true
-                runOnUiThread { status.text = "NOORA\n\nYou: $transcript\n\nThinking..."; avatar.setState("Thinking") }
+
+                runOnUiThread {
+                    status.text = "NOORA\n\nYou: $transcript\n\nThinking..."
+                    avatar.setState("Thinking")
+                }
+
                 coordinator.handleTranscript(transcript)
             },
+
             onError = {
                 voiceBusy = false
+
                 if (continuousConversation) {
-                    mainHandler.postDelayed({ startListening(status) }, 700L)
+                    scheduleListening(status, 1000L)
                 } else {
-                    runOnUiThread { status.text = "NOORA\n\nVoice input could not be completed." }
+                    runOnUiThread {
+                        status.text = "NOORA\n\nVoice input could not be completed."
+                        avatar.setState("Ready")
+                    }
                 }
             },
+
             onState = { state ->
-                runOnUiThread { status.text = "NOORA\n\n$state"; avatar.setState(state) }
+                runOnUiThread {
+                    status.text = "NOORA\n\n$state"
+
+                    avatar.setState(
+                        when {
+                            state.contains("Listening", true) -> "Listening"
+                            state.contains("Processing", true) -> "Thinking"
+                            else -> state
+                        }
+                    )
+                }
             }
         )
     }
 
-    private fun showBiometricPrompt(status: TextView) {
-        val manager = BiometricManager.from(this)
-        val canAuth = manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-        if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
-            Toast.makeText(this, "Strong Android authentication is not available on this device.", Toast.LENGTH_SHORT).show()
+    private fun scheduleListening(status: TextView, delayMs: Long) {
+        if (!continuousConversation || voiceBusy || listeningRestartPending) {
             return
         }
+
+        listeningRestartPending = true
+
+        mainHandler.postDelayed({
+            listeningRestartPending = false
+
+            if (continuousConversation && !voiceBusy) {
+                startListening(status)
+            }
+        }, delayMs)
+    }
+
+    private fun showBiometricPrompt(status: TextView) {
+        val manager = BiometricManager.from(this)
+
+        val canAuth = manager.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        )
+
+        if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+            Toast.makeText(
+                this,
+                "Strong Android authentication is not available on this device.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         val executor = ContextCompat.getMainExecutor(this)
-        val prompt = BiometricPrompt(this, executor, object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                sessionAuthorization.authorizeOwner()
-                status.text = "NOORA\n\nStrong authentication successful."
+
+        val prompt = BiometricPrompt(
+            this,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+
+                override fun onAuthenticationSucceeded(
+                    result: BiometricPrompt.AuthenticationResult
+                ) {
+                    sessionAuthorization.authorizeOwner()
+                    status.text = "NOORA\n\nStrong authentication successful."
+                }
+
+                override fun onAuthenticationError(
+                    errorCode: Int,
+                    errString: CharSequence
+                ) {
+                    status.text = "NOORA\n\nAuthentication cancelled or unavailable."
+                }
             }
-            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                status.text = "NOORA\n\nAuthentication cancelled or unavailable."
-            }
-        })
+        )
+
         prompt.authenticate(
             BiometricPrompt.PromptInfo.Builder()
                 .setTitle("NOORA Security")
                 .setSubtitle("Confirm that you are authorized to use NOORA")
-                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                .setAllowedAuthenticators(
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                )
                 .build()
         )
     }
 
     override fun onDestroy() {
         continuousConversation = false
+        listeningRestartPending = false
+        voiceBusy = false
         mainHandler.removeCallbacksAndMessages(null)
         coordinator.shutdown()
         listener.destroy()

@@ -36,6 +36,7 @@ class MainActivity: AppCompatActivity() {
     private var voiceBusy = false
     private var wakeWordEnabled = false
     private var listeningRestartPending = false
+    private var silentMode = false
     private val sessionAuthorization = NooraSessionAuthorization()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,14 +73,25 @@ class MainActivity: AppCompatActivity() {
 
                         runOnUiThread {
                             status.text = "NOORA\n\nAwake"
-                            avatar.setState("Listening")
+                            avatar.setState("Ready")
 
                             if (command.isBlank()) {
                                 continuousConversation = true
                                 voiceBusy = false
+
+                                if (!silentMode) {
+                                    status.text = "NOORA\n\nListening for your command..."
+                                    avatar.setState("Listening")
+                                }
+
                                 startListening(status)
                             } else {
                                 continuousConversation = false
+
+                                if (handleSilentCommand(command, status)) {
+                                    return@runOnUiThread
+                                }
+
                                 voiceBusy = true
                                 status.text = "NOORA\n\nYou: $command\n\nThinking..."
                                 avatar.setState("Thinking")
@@ -87,12 +99,10 @@ class MainActivity: AppCompatActivity() {
                             }
                         }
                     },
-                    onState = { state ->
+                    onState = { _ ->
                         runOnUiThread {
-                            status.text = "NOORA\n\nWake Word\n$state"
-                            avatar.setState(
-                                if (state.contains("Listening", true)) "Listening" else "Ready"
-                            )
+                            status.text = "NOORA\n\nSay: NOORA"
+                            avatar.setState("Ready")
                         }
                     }
                 )
@@ -291,11 +301,14 @@ class MainActivity: AppCompatActivity() {
                 voiceBusy = true
 
                 runOnUiThread {
+                    if (handleSilentCommand(transcript, status)) {
+                        return@runOnUiThread
+                    }
+
                     status.text = "NOORA\n\nYou: $transcript\n\nThinking..."
                     avatar.setState("Thinking")
+                    coordinator.handleTranscript(transcript)
                 }
-
-                coordinator.handleTranscript(transcript)
             },
 
             onError = {
@@ -325,6 +338,70 @@ class MainActivity: AppCompatActivity() {
                 }
             }
         )
+    }
+
+    private fun handleSilentCommand(command: String, status: TextView): Boolean {
+        val normalized = command.lowercase(java.util.Locale.ROOT).trim()
+
+        val isSilentCommand =
+            normalized == "silent" ||
+            normalized == "be silent" ||
+            normalized == "chup" ||
+            normalized == "chup ho jao" ||
+            normalized == "chup hojao" ||
+            normalized == "khamosh" ||
+            normalized == "khamosh ho jao" ||
+            normalized == "خاموش" ||
+            normalized == "چپ" ||
+            normalized == "چپ ہو جاؤ"
+
+        if (!isSilentCommand) return false
+
+        silentMode = true
+        continuousConversation = false
+        voiceBusy = false
+        listeningRestartPending = false
+        mainHandler.removeCallbacksAndMessages(null)
+        listener.cancel()
+        speaker.stop()
+
+        status.text = "NOORA\n\nSilent"
+        avatar.setState("Ready")
+
+        if (wakeWordEnabled) {
+            wakeWord.start(
+                onWake = { commandAfterWake ->
+                    wakeWord.stop()
+
+                    runOnUiThread {
+                        status.text = "NOORA\n\nAwake"
+                        avatar.setState("Ready")
+
+                        if (commandAfterWake.isBlank()) {
+                            continuousConversation = true
+                            voiceBusy = true
+                            startListening(status)
+                        } else if (handleSilentCommand(commandAfterWake, status)) {
+                            return@runOnUiThread
+                        } else {
+                            continuousConversation = false
+                            voiceBusy = true
+                            status.text = "NOORA\n\nYou: $commandAfterWake\n\nThinking..."
+                            avatar.setState("Thinking")
+                            coordinator.handleTranscript(commandAfterWake)
+                        }
+                    }
+                },
+                onState = { _ ->
+                    runOnUiThread {
+                        status.text = "NOORA\n\nSay: NOORA"
+                        avatar.setState("Ready")
+                    }
+                }
+            )
+        }
+
+        return true
     }
 
     private fun scheduleListening(status: TextView, delayMs: Long) {

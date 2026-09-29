@@ -139,15 +139,15 @@ class NooraWakeWordEngine(context: Context) {
 
     private fun extractWakeCommand(text: String): String? {
         val normalized = text.lowercase(Locale.ROOT)
-            .replace(Regex("[^\p{L}\p{N} ]"), " ")
-            .replace(Regex("\s+"), " ")
+            .replace(Regex("""[^\p{L}\p{N} ]"""), " ")
+            .replace(Regex("""\s+"""), " ")
             .trim()
 
         if (normalized == "noora" || normalized == "نورا") {
             return ""
         }
 
-        val wake = Regex("(?:^|\s)(noora|نورا)(?:\s|$)")
+        val wake = Regex("""(?:^|\s)(noora|نورا)(?:\s|$)""")
         val match = wake.find(normalized) ?: return null
 
         return normalized.removeRange(match.range).trim()

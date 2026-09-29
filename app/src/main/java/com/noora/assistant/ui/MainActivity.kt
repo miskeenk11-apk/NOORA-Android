@@ -65,6 +65,37 @@ class MainActivity: AppCompatActivity() {
 
             if (continuousConversation) {
                 scheduleListening(status, 500L)
+            } else if (wakeWordEnabled) {
+                wakeWord.start(
+                    onWake = { command ->
+                        wakeWord.stop()
+
+                        runOnUiThread {
+                            status.text = "NOORA\n\nAwake"
+                            avatar.setState("Listening")
+
+                            if (command.isBlank()) {
+                                continuousConversation = true
+                                voiceBusy = false
+                                startListening(status)
+                            } else {
+                                continuousConversation = false
+                                voiceBusy = true
+                                status.text = "NOORA\n\nYou: $command\n\nThinking..."
+                                avatar.setState("Thinking")
+                                coordinator.handleTranscript(command)
+                            }
+                        }
+                    },
+                    onState = { state ->
+                        runOnUiThread {
+                            status.text = "NOORA\n\nWake Word\n$state"
+                            avatar.setState(
+                                if (state.contains("Listening", true)) "Listening" else "Ready"
+                            )
+                        }
+                    }
+                )
             }
         }
 
@@ -193,10 +224,13 @@ class MainActivity: AppCompatActivity() {
                                 status.text = "NOORA\n\nAwake"
 
                                 if (command.isBlank()) {
+                                    continuousConversation = true
+                                    voiceBusy = true
                                     status.text = "NOORA\n\nSpeaking..."
                                     avatar.setState("Speaking")
                                     speaker.speak("Ji, boliye.", "ur")
                                 } else {
+                                    continuousConversation = false
                                     voiceBusy = true
                                     status.text = "NOORA\n\nYou: $command\n\nThinking..."
                                     avatar.setState("Thinking")

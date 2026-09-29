@@ -147,7 +147,7 @@ class NooraWakeWordEngine(context: Context) {
             return ""
         }
 
-        val wake = Regex("""(?:^|\s)(noora|نورا)(?:\s|$)""")
+        val wake = Regex("""(?:^|\s)(noora|nora|noorah|noor|نورا|نور)(?:\s|$)""")
         val match = wake.find(normalized) ?: return null
 
         return normalized.removeRange(match.range).trim()

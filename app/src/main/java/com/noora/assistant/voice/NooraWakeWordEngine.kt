@@ -143,7 +143,19 @@ class NooraWakeWordEngine(context: Context) {
             .replace(Regex("""\s+"""), " ")
             .trim()
 
-        if (normalized == "noora" || normalized == "نورا") {
+        if (
+            normalized == "noora" ||
+            normalized == "nora" ||
+            normalized == "noorah" ||
+            normalized == "noor" ||
+            normalized == "نورا" ||
+            normalized == "نور" ||
+            normalized == "hello" ||
+            normalized == "hello noora" ||
+            normalized == "hello nora" ||
+            normalized == "hey noora" ||
+            normalized == "hey nora"
+        ) {
             return ""
         }
 

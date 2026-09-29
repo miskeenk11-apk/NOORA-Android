@@ -193,7 +193,9 @@ class MainActivity: AppCompatActivity() {
                                 status.text = "NOORA\n\nAwake"
 
                                 if (command.isBlank()) {
-                                    startListening(status)
+                                    status.text = "NOORA\n\nSpeaking..."
+                                    avatar.setState("Speaking")
+                                    speaker.speak("Ji, boliye.", "ur")
                                 } else {
                                     voiceBusy = true
                                     status.text = "NOORA\n\nYou: $command\n\nThinking..."

@@ -22,7 +22,7 @@ class NooraPhoneControl(private val context: Context) {
             c.contains("open settings") || c.contains("settings kholo") || c.contains("سیٹنگ") -> launch(Intent(Settings.ACTION_SETTINGS), "Settings opened")
             c.contains("open camera") || c.contains("camera kholo") || c.contains("کیمرہ") -> launch(Intent("android.media.action.IMAGE_CAPTURE"), "Camera opened")
             c.contains("open browser") || c.contains("browser kholo") || c.contains("chrome kholo") -> launch(Intent(Intent.ACTION_VIEW).apply { data = Uri.parse("https://www.google.com") }, "Browser opened")
-            c.contains("open whatsapp") || c.contains("whatsapp kholo") || c.contains("واٹس ایپ") -> launchPackage("com.whatsapp", "WhatsApp opened")
+            c.contains("open whatsapp") || c.contains("whatsapp open") || c.contains("whatsapp kholo") || c.contains("whatsapp khol") || c.contains("واٹس ایپ") -> launchPackage("com.whatsapp", "WhatsApp opened")
             c.contains("open youtube") || c.contains("youtube kholo") -> launchPackage("com.google.android.youtube", "YouTube opened")
             c.contains("open phone") || c.contains("dialer kholo") || c.contains("phone kholo") -> launch(Intent(Intent.ACTION_DIAL), "Phone opened")
             c.contains("open messages") || c.contains("messages kholo") || c.contains("sms kholo") -> launch(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MESSAGING), "Messages opened")

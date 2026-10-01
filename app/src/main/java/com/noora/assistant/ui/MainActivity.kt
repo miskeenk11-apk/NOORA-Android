@@ -65,7 +65,8 @@ class MainActivity: AppCompatActivity() {
             if (message == "Voice ready") status.text = "NOORA\n\nReady.\nVoice: Ready"
         } }
 
-        // Automatic time-based greeting: speak once each time the activity is created.
+        // Opening greeting: show NOORA's adab/salute state, then greet by time and ask what the user would like.
+        avatar.setState("Salute")
         speakTimeBasedGreeting()
         listener = NooraSpeechRecognizer(this)
         wakeWord = com.noora.assistant.voice.NooraWakeWordEngine(this)
@@ -364,7 +365,13 @@ class MainActivity: AppCompatActivity() {
         }
 
         mainHandler.postDelayed({
-            speaker.speak(greeting, "en")
+            speaker.speak(
+                "Assalam-o-Alaikum. $greeting Ji, aap kya pasand karenge.",
+                "en"
+            )
+            mainHandler.postDelayed({
+                avatar.setState("Ready")
+            }, 5000L)
         }, 700L)
     }
 

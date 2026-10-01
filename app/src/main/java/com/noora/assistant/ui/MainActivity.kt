@@ -65,6 +65,8 @@ class MainActivity: AppCompatActivity() {
             if (message == "Voice ready") status.text = "NOORA\n\nReady.\nVoice: Ready"
         } }
 
+        // Automatic time-based greeting: speak once each time the activity is created.
+        speakTimeBasedGreeting()
         listener = NooraSpeechRecognizer(this)
         wakeWord = com.noora.assistant.voice.NooraWakeWordEngine(this)
 
@@ -348,6 +350,22 @@ class MainActivity: AppCompatActivity() {
                 Manifest.permission.READ_CONTACTS
             )
         )
+    }
+
+    private fun speakTimeBasedGreeting() {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+
+        val greeting = when (hour) {
+            in 0..4 -> "Good night."
+            in 5..11 -> "Good morning."
+            in 12..16 -> "Good afternoon."
+            in 17..20 -> "Good evening."
+            else -> "Good night."
+        }
+
+        mainHandler.postDelayed({
+            speaker.speak(greeting, "en")
+        }, 700L)
     }
 
     private fun startListening(status: TextView) {

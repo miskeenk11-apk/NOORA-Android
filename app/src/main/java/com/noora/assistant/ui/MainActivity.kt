@@ -7,6 +7,13 @@ import android.os.Looper
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ImageButton
+import android.widget.FrameLayout
+import android.view.Gravity
+import android.graphics.Color
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -265,17 +272,74 @@ class MainActivity: AppCompatActivity() {
             }
         }
 
-        setContentView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(avatar)
-            addView(status)
-            addView(listen)
-            addView(wake)
-            addView(security)
-            addView(owner)
-            addView(guest)
-            addView(biometric)
-        })
+        // Full-screen NOORA: controls are kept in the existing buttons but exposed
+        // only through the three-dot menu so the avatar remains the main screen.
+        val more = ImageButton(this).apply {
+            setImageResource(android.R.drawable.ic_menu_more)
+            setBackgroundColor(Color.TRANSPARENT)
+            contentDescription = "NOORA options"
+            setPadding(18, 18, 18, 18)
+            setOnClickListener { anchor ->
+                PopupMenu(this@MainActivity, anchor).apply {
+                    menu.add(Menu.NONE, 1, 1, "TALK TO NOORA")
+                    menu.add(Menu.NONE, 2, 2, "WAKE WORD: OFF")
+                    menu.add(Menu.NONE, 3, 3, "SECURITY: OFF")
+                    menu.add(Menu.NONE, 4, 4, "I AM OWNER")
+                    menu.add(Menu.NONE, 5, 5, "AUTHORIZE GUEST")
+                    menu.add(Menu.NONE, 6, 6, "STRONG AUTH TEST")
+
+                    setOnMenuItemClickListener { item ->
+                        when (item.itemId) {
+                            1 -> listen.performClick()
+                            2 -> {
+                                item.title = if (wakeWordEnabled) {
+                                    "WAKE WORD: ON"
+                                } else {
+                                    "WAKE WORD: OFF"
+                                }
+                                wake.performClick()
+                            }
+                            3 -> {
+                                item.title = if (sessionAuthorization.recognitionEnabled) {
+                                    "SECURITY: ON"
+                                } else {
+                                    "SECURITY: OFF"
+                                }
+                                security.performClick()
+                            }
+                            4 -> owner.performClick()
+                            5 -> guest.performClick()
+                            6 -> biometric.performClick()
+                        }
+                        true
+                    }
+
+                    setOnDismissListener { }
+                    show()
+                }
+            }
+        }
+
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            addView(
+                avatar,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            )
+            addView(
+                more,
+                FrameLayout.LayoutParams(64, 64).apply {
+                    gravity = Gravity.TOP or Gravity.END
+                    topMargin = 18
+                    marginEnd = 12
+                }
+            )
+        }
+
+        setContentView(root)
 
         permissionLauncher.launch(
             arrayOf(

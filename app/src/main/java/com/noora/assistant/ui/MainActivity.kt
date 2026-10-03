@@ -37,6 +37,8 @@ class MainActivity: AppCompatActivity() {
     private lateinit var speaker: NooraTextToSpeech
     private lateinit var coordinator: NooraConversationCoordinator
     private lateinit var avatar: NooraAvatarView
+    private lateinit var statusView: TextView
+    private lateinit var moreButton: ImageButton
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
     private val mainHandler = Handler(Looper.getMainLooper())
     private var continuousConversation = false
@@ -49,15 +51,37 @@ class MainActivity: AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        avatar = NooraAvatarView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 420)
-            setState("Ready")
-        }
-
-        val status = TextView(this).apply {
+        statusView = TextView(this).apply {
             textSize = 20f
             setPadding(40, 60, 40, 30)
             text = "NOORA\n\nReady.\nMode: ${NooraConnectivity(this@MainActivity).mode()}"
+        }
+
+        avatar = NooraAvatarView(this) { action ->
+            when (action) {
+                NooraAvatarView.Action.VOICE -> {
+                    if (continuousConversation) {
+                        continuousConversation = false
+                        listeningRestartPending = false
+                        voiceBusy = false
+                        mainHandler.removeCallbacksAndMessages(null)
+                        if (::listener.isInitialized) listener.cancel()
+                        statusView.text = "NOORA\n\nReady"
+                        avatar.setState("Ready")
+                    } else if (::listener.isInitialized) {
+                        continuousConversation = true
+                        listeningRestartPending = false
+                        startListening(statusView)
+                    }
+                }
+                NooraAvatarView.Action.SETTINGS -> {
+                    if (::moreButton.isInitialized) moreButton.performClick()
+                }
+                NooraAvatarView.Action.EXIT -> finishAndRemoveTask()
+            }
+        }.apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 420)
+            setState("Ready")
         }
 
         speaker = NooraTextToSpeech(this)
@@ -277,7 +301,7 @@ class MainActivity: AppCompatActivity() {
 
         // Full-screen NOORA: controls are kept in the existing buttons but exposed
         // only through the three-dot menu so the avatar remains the main screen.
-        val more = ImageButton(this).apply {
+        moreButton = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_menu_more)
             setBackgroundColor(Color.TRANSPARENT)
             contentDescription = "NOORA options"
@@ -333,7 +357,7 @@ class MainActivity: AppCompatActivity() {
                 )
             )
             addView(
-                more,
+                moreButton,
                 FrameLayout.LayoutParams(64, 64).apply {
                     gravity = Gravity.TOP or Gravity.END
                     topMargin = 18

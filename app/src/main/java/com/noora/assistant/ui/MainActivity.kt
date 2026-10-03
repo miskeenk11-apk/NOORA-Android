@@ -483,7 +483,7 @@ class MainActivity: AppCompatActivity() {
                 },
                 onState = { _ ->
                     runOnUiThread {
-                        status.text = "NOORA\n\nSay: NOORA"
+                        status.text = "NOORA\n\nSay: Hey JARVIS"
                         avatar.setState("Ready")
                     }
                 }

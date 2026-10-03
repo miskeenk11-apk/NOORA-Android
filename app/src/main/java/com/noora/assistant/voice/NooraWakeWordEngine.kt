@@ -1,168 +1,87 @@
 package com.noora.assistant.voice
 
+import android.Manifest
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import java.util.Locale
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import com.openwakeword.OpenWakeWord
 
 /**
- * Practical wake-word foundation using the existing Android speech recognizer.
- * This is intentionally not advertised as a low-power hardware hotword engine.
+ * Dedicated on-device wake-word engine.
+ *
+ * The assistant name remains NOORA.
+ * The activation phrase is the bundled "Hey Jarvis" model.
  */
 class NooraWakeWordEngine(context: Context) {
 
-    private val recognizer = NooraSpeechRecognizer(context)
-    private val handler = Handler(Looper.getMainLooper())
-
+    private val appContext = context.applicationContext
+    private var detector: OpenWakeWord? = null
     private var active = false
-    private var listening = false
-    private var restartPending = false
     private var destroyed = false
 
+    init {
+        detector = try {
+            OpenWakeWord.Builder(appContext)
+                .setModel(OpenWakeWord.BuiltInModel.HEY_JARVIS)
+                .setThreshold(0.5f)
+                .setDebounceMs(2000L)
+                .build()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun isAvailable(): Boolean =
-        !destroyed && recognizer.isAvailable()
+        !destroyed &&
+            detector != null &&
+            ContextCompat.checkSelfPermission(
+                appContext,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
 
     fun start(
         onWake: (String) -> Unit,
         onState: (String) -> Unit = {},
         onError: (Int) -> Unit = {}
     ) {
-        if (destroyed) return
+        if (destroyed || active) return
+
+        if (!isAvailable()) {
+            onState("Microphone permission required")
+            return
+        }
+
+        val currentDetector = detector ?: run {
+            onState("Wake word engine unavailable")
+            return
+        }
 
         active = true
-        restartPending = false
-        handler.removeCallbacksAndMessages(null)
+        onState("Say: Hey JARVIS")
 
-        listenForWake(onWake, onState, onError)
+        try {
+            currentDetector.start {
+                if (!active || destroyed) return@start
+
+                active = false
+                onState("Wake word detected")
+                onWake("")
+            }
+        } catch (_: Exception) {
+            active = false
+            onState("Wake word could not start")
+        }
     }
 
     fun stop() {
         active = false
-        listening = false
-        restartPending = false
 
-        handler.removeCallbacksAndMessages(null)
-        recognizer.cancel()
-    }
+        if (destroyed) return
 
-    private fun listenForWake(
-        onWake: (String) -> Unit,
-        onState: (String) -> Unit,
-        onError: (Int) -> Unit
-    ) {
-        if (
-            destroyed ||
-            !active ||
-            listening ||
-            restartPending ||
-            !recognizer.isAvailable()
-        ) {
-            return
+        try {
+            detector?.stop()
+        } catch (_: Exception) {
         }
-
-        listening = true
-
-        recognizer.listen(
-            languageTag = "en-US",
-
-            onText = { transcript ->
-                listening = false
-
-                val command = extractWakeCommand(transcript)
-
-                if (command != null) {
-                    onWake(command)
-                } else {
-                    scheduleWakeRestart(
-                        onWake,
-                        onState,
-                        onError,
-                        700L
-                    )
-                }
-            },
-
-            onError = { error ->
-                listening = false
-
-                /*
-                 * Android may briefly report the recognizer as busy
-                 * while the previous microphone session is closing.
-                 * Do not immediately start another session.
-                 */
-                if (error != android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY) {
-                    onError(error)
-                }
-
-                if (active) {
-                    scheduleWakeRestart(
-                        onWake,
-                        onState,
-                        onError,
-                        1500L
-                    )
-                }
-            },
-
-            onState = onState
-        )
-    }
-
-    private fun scheduleWakeRestart(
-        onWake: (String) -> Unit,
-        onState: (String) -> Unit,
-        onError: (Int) -> Unit,
-        delayMs: Long
-    ) {
-        if (
-            destroyed ||
-            !active ||
-            restartPending
-        ) {
-            return
-        }
-
-        restartPending = true
-
-        handler.postDelayed({
-            restartPending = false
-
-            if (active && !listening && !destroyed) {
-                listenForWake(
-                    onWake,
-                    onState,
-                    onError
-                )
-            }
-        }, delayMs)
-    }
-
-    private fun extractWakeCommand(text: String): String? {
-        val normalized = text.lowercase(Locale.ROOT)
-            .replace(Regex("""[^\p{L}\p{N} ]"""), " ")
-            .replace(Regex("""\s+"""), " ")
-            .trim()
-
-        if (
-            normalized == "noora" ||
-            normalized == "nora" ||
-            normalized == "noorah" ||
-            normalized == "noor" ||
-            normalized == "نورا" ||
-            normalized == "نور" ||
-            normalized == "hello" ||
-            normalized == "hello noora" ||
-            normalized == "hello nora" ||
-            normalized == "hey noora" ||
-            normalized == "hey nora"
-        ) {
-            return ""
-        }
-
-        val wake = Regex("""(?:^|\s)(noora|nora|noorah|noor|نورا|نور)(?:\s|$)""")
-        val match = wake.find(normalized) ?: return null
-
-        return normalized.removeRange(match.range).trim()
     }
 
     fun destroy() {
@@ -170,10 +89,17 @@ class NooraWakeWordEngine(context: Context) {
 
         destroyed = true
         active = false
-        listening = false
-        restartPending = false
 
-        handler.removeCallbacksAndMessages(null)
-        recognizer.destroy()
+        try {
+            detector?.stop()
+        } catch (_: Exception) {
+        }
+
+        try {
+            detector?.release()
+        } catch (_: Exception) {
+        }
+
+        detector = null
     }
 }

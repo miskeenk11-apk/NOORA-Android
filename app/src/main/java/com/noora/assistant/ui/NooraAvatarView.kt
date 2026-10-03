@@ -89,11 +89,11 @@ class NooraAvatarView(
                 onAction(Action.VOICE)
                 return true
             }
-            x in 0.02f..0.20f && y in 0.76f..0.91f -> {
+            x in 0.02f..0.20f && y in 0.76f..0.88f -> {
                 onAction(Action.SETTINGS)
                 return true
             }
-            x in 0.02f..0.20f && y >= 0.89f -> {
+            x in 0.02f..0.20f && y >= 0.88f -> {
                 onAction(Action.EXIT)
                 return true
             }

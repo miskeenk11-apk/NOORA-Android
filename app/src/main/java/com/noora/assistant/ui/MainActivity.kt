@@ -86,7 +86,7 @@ class MainActivity: AppCompatActivity() {
 
         speaker = NooraTextToSpeech(this)
         speaker.setStatusListener { message -> runOnUiThread {
-            if (message == "Voice ready") status.text = "NOORA\n\nReady.\nVoice: Ready"
+            if (message == "Voice ready") statusView.text = "NOORA\n\nReady.\nVoice: Ready"
         } }
 
         // Opening greeting: show NOORA's adab/salute state, then greet by time and ask what the user would like.
@@ -99,14 +99,14 @@ class MainActivity: AppCompatActivity() {
             voiceBusy = false
 
             if (continuousConversation) {
-                scheduleListening(status, 500L)
+                scheduleListening(statusView, 500L)
             } else if (wakeWordEnabled) {
                 wakeWord.start(
                     onWake = { command ->
                         wakeWord.stop()
 
                         runOnUiThread {
-                            status.text = "NOORA\n\nAwake"
+                            statusView.text = "NOORA\n\nAwake"
                             avatar.setState("Ready")
 
                             if (command.isBlank()) {
@@ -114,20 +114,20 @@ class MainActivity: AppCompatActivity() {
                                 voiceBusy = false
 
                                 if (!silentMode) {
-                                    status.text = "NOORA\n\nListening for your command..."
+                                    statusView.text = "NOORA\n\nListening for your command..."
                                     avatar.setState("Listening")
                                 }
 
-                                startListening(status)
+                                startListening(statusView)
                             } else {
                                 continuousConversation = false
 
-                                if (handleSilentCommand(command, status)) {
+                                if (handleSilentCommand(command, statusView)) {
                                     return@runOnUiThread
                                 }
 
                                 voiceBusy = true
-                                status.text = "NOORA\n\nYou: $command\n\nThinking..."
+                                statusView.text = "NOORA\n\nYou: $command\n\nThinking..."
                                 avatar.setState("Thinking")
                                 coordinator.handleTranscript(command)
                             }
@@ -135,7 +135,7 @@ class MainActivity: AppCompatActivity() {
                     },
                     onState = { _ ->
                         runOnUiThread {
-                            status.text = "NOORA\n\nSay: Hey JARVIS"
+                            statusView.text = "NOORA\n\nSay: Hey JARVIS"
                             avatar.setState("Ready")
                         }
                     }
@@ -155,7 +155,7 @@ class MainActivity: AppCompatActivity() {
             gateway,
             NooraPhoneControl(this)
         ) { message -> runOnUiThread {
-            status.text = "NOORA\n\n$message"
+            statusView.text = "NOORA\n\n$message"
             avatar.setState(when {
                 message.contains("Listening", true) -> "Listening"
                 message.contains("Thinking", true) -> "Thinking"
@@ -178,14 +178,14 @@ class MainActivity: AppCompatActivity() {
 
                 if (continuousConversation) {
                     listeningRestartPending = false
-                    startListening(status)
+                    startListening(statusView)
                 } else {
                     listeningRestartPending = false
                     voiceBusy = false
                     mainHandler.removeCallbacksAndMessages(null)
                     listener.cancel()
 
-                    status.text = "NOORA\n\nReady"
+                    statusView.text = "NOORA\n\nReady"
                     avatar.setState("Ready")
                 }
             }
@@ -203,7 +203,7 @@ class MainActivity: AppCompatActivity() {
                     "SECURITY: OFF"
                 }
 
-                status.text = if (sessionAuthorization.recognitionEnabled) {
+                statusView.text = if (sessionAuthorization.recognitionEnabled) {
                     "NOORA\n\nSecurity ON\nPlease identify/authorize the current user."
                 } else {
                     "NOORA\n\nSecurity OFF\nOwner session active."
@@ -216,7 +216,7 @@ class MainActivity: AppCompatActivity() {
 
             setOnClickListener {
                 sessionAuthorization.authorizeOwner()
-                status.text = "NOORA\n\nOwner authorized for this session."
+                statusView.text = "NOORA\n\nOwner authorized for this session."
             }
         }
 
@@ -225,14 +225,14 @@ class MainActivity: AppCompatActivity() {
 
             setOnClickListener {
                 sessionAuthorization.authorizeGuest()
-                status.text = "NOORA\n\nAuthorized guest for this session."
+                statusView.text = "NOORA\n\nAuthorized guest for this session."
             }
         }
 
         val biometric = Button(this).apply {
             text = "STRONG AUTH TEST"
             setOnClickListener {
-                showBiometricPrompt(status)
+                showBiometricPrompt(statusView)
             }
         }
 
@@ -256,7 +256,7 @@ class MainActivity: AppCompatActivity() {
                     mainHandler.removeCallbacksAndMessages(null)
                     listener.cancel()
 
-                    status.text = "NOORA\n\nSay: Hey JARVIS"
+                    statusView.text = "NOORA\n\nSay: Hey JARVIS"
 
                     wakeWord.start(
                         onWake = { command ->
@@ -265,18 +265,18 @@ class MainActivity: AppCompatActivity() {
 
                             runOnUiThread {
                                 listen.text = "STOP CONVERSATION"
-                                status.text = "NOORA\n\nAwake"
+                                statusView.text = "NOORA\n\nAwake"
 
                                 if (command.isBlank()) {
                                     continuousConversation = true
                                     voiceBusy = true
-                                    status.text = "NOORA\n\nSpeaking..."
+                                    statusView.text = "NOORA\n\nSpeaking..."
                                     avatar.setState("Speaking")
                                     speaker.speak("Ji, boliye.", "ur")
                                 } else {
                                     continuousConversation = false
                                     voiceBusy = true
-                                    status.text = "NOORA\n\nYou: $command\n\nThinking..."
+                                    statusView.text = "NOORA\n\nYou: $command\n\nThinking..."
                                     avatar.setState("Thinking")
                                     coordinator.handleTranscript(command)
                                 }
@@ -284,7 +284,7 @@ class MainActivity: AppCompatActivity() {
                         },
                         onState = { state ->
                             runOnUiThread {
-                                status.text = "NOORA\n\nWake Word\n$state"
+                                statusView.text = "NOORA\n\nWake Word\n$state"
                             }
                         }
                     )
@@ -293,7 +293,7 @@ class MainActivity: AppCompatActivity() {
                     listeningRestartPending = false
                     voiceBusy = false
                     mainHandler.removeCallbacksAndMessages(null)
-                    status.text = "NOORA\n\nReady"
+                    statusView.text = "NOORA\n\nReady"
                     avatar.setState("Ready")
                 }
             }
@@ -399,7 +399,7 @@ class MainActivity: AppCompatActivity() {
         }, 700L)
     }
 
-    private fun startListening(status: TextView) {
+    private fun startListening(statusView: TextView) {
         if (!continuousConversation || voiceBusy || listeningRestartPending || !listener.isAvailable()) {
             return
         }
@@ -414,11 +414,11 @@ class MainActivity: AppCompatActivity() {
                 voiceBusy = true
 
                 runOnUiThread {
-                    if (handleSilentCommand(transcript, status)) {
+                    if (handleSilentCommand(transcript, statusView)) {
                         return@runOnUiThread
                     }
 
-                    status.text = "NOORA\n\nYou: $transcript\n\nThinking..."
+                    statusView.text = "NOORA\n\nYou: $transcript\n\nThinking..."
                     avatar.setState("Thinking")
                     coordinator.handleTranscript(transcript)
                 }
@@ -428,10 +428,10 @@ class MainActivity: AppCompatActivity() {
                 voiceBusy = false
 
                 if (continuousConversation) {
-                    scheduleListening(status, 1000L)
+                    scheduleListening(statusView, 1000L)
                 } else {
                     runOnUiThread {
-                        status.text = "NOORA\n\nVoice input could not be completed."
+                        statusView.text = "NOORA\n\nVoice input could not be completed."
                         avatar.setState("Ready")
                     }
                 }
@@ -439,7 +439,7 @@ class MainActivity: AppCompatActivity() {
 
             onState = { state ->
                 runOnUiThread {
-                    status.text = "NOORA\n\n$state"
+                    statusView.text = "NOORA\n\n$state"
 
                     avatar.setState(
                         when {
@@ -453,7 +453,7 @@ class MainActivity: AppCompatActivity() {
         )
     }
 
-    private fun handleSilentCommand(command: String, status: TextView): Boolean {
+    private fun handleSilentCommand(command: String, statusView: TextView): Boolean {
         val normalized = command.lowercase(java.util.Locale.ROOT).trim()
 
         val isSilentCommand =
@@ -478,7 +478,7 @@ class MainActivity: AppCompatActivity() {
         listener.cancel()
         speaker.stop()
 
-        status.text = "NOORA\n\nSilent"
+        statusView.text = "NOORA\n\nSilent"
         avatar.setState("Ready")
 
         if (wakeWordEnabled) {
@@ -487,19 +487,19 @@ class MainActivity: AppCompatActivity() {
                     wakeWord.stop()
 
                     runOnUiThread {
-                        status.text = "NOORA\n\nAwake"
+                        statusView.text = "NOORA\n\nAwake"
                         avatar.setState("Ready")
 
                         if (commandAfterWake.isBlank()) {
                             continuousConversation = true
                             voiceBusy = true
-                            startListening(status)
-                        } else if (handleSilentCommand(commandAfterWake, status)) {
+                            startListening(statusView)
+                        } else if (handleSilentCommand(commandAfterWake, statusView)) {
                             return@runOnUiThread
                         } else {
                             continuousConversation = false
                             voiceBusy = true
-                            status.text = "NOORA\n\nYou: $commandAfterWake\n\nThinking..."
+                            statusView.text = "NOORA\n\nYou: $commandAfterWake\n\nThinking..."
                             avatar.setState("Thinking")
                             coordinator.handleTranscript(commandAfterWake)
                         }
@@ -507,7 +507,7 @@ class MainActivity: AppCompatActivity() {
                 },
                 onState = { _ ->
                     runOnUiThread {
-                        status.text = "NOORA\n\nSay: Hey JARVIS"
+                        statusView.text = "NOORA\n\nSay: Hey JARVIS"
                         avatar.setState("Ready")
                     }
                 }
@@ -517,7 +517,7 @@ class MainActivity: AppCompatActivity() {
         return true
     }
 
-    private fun scheduleListening(status: TextView, delayMs: Long) {
+    private fun scheduleListening(statusView: TextView, delayMs: Long) {
         if (!continuousConversation || voiceBusy || listeningRestartPending) {
             return
         }
@@ -528,12 +528,12 @@ class MainActivity: AppCompatActivity() {
             listeningRestartPending = false
 
             if (continuousConversation && !voiceBusy) {
-                startListening(status)
+                startListening(statusView)
             }
         }, delayMs)
     }
 
-    private fun showBiometricPrompt(status: TextView) {
+    private fun showBiometricPrompt(statusView: TextView) {
         val manager = BiometricManager.from(this)
 
         val canAuth = manager.canAuthenticate(
@@ -561,14 +561,14 @@ class MainActivity: AppCompatActivity() {
                     result: BiometricPrompt.AuthenticationResult
                 ) {
                     sessionAuthorization.authorizeOwner()
-                    status.text = "NOORA\n\nStrong authentication successful."
+                    statusView.text = "NOORA\n\nStrong authentication successful."
                 }
 
                 override fun onAuthenticationError(
                     errorCode: Int,
                     errString: CharSequence
                 ) {
-                    status.text = "NOORA\n\nAuthentication cancelled or unavailable."
+                    statusView.text = "NOORA\n\nAuthentication cancelled or unavailable."
                 }
             }
         )

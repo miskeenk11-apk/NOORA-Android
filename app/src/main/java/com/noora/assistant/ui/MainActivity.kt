@@ -69,6 +69,7 @@ class MainActivity: AppCompatActivity() {
                         statusView.text = "NOORA\n\nReady"
                         avatar.setState("Ready")
                     } else if (::listener.isInitialized) {
+                        if (wakeWordEnabled) wakeWord.stop()
                         continuousConversation = true
                         listeningRestartPending = false
                         startListening(statusView)

@@ -30,6 +30,6 @@ class GatewayAiClient(
         if (connection.responseCode !in 200..299) {
             throw IllegalStateException(JSONObject(response).optString("error", "Gateway error ${connection.responseCode}"))
         }
-        JSONObject(response).optString("text").ifBlank { throw IllegalStateException("Gateway returned no text") }
+        JSONObject(response).optString("reply").ifBlank { throw IllegalStateException("Gateway returned no text") }
     }
 }

@@ -133,7 +133,7 @@ private fun Noora3DPlaceholderScene(state: String) {
         SphereNode(
             radius = 0.50f,
             materialInstance = hijab,
-            position = Position(y = 0.48f + bob, z = 0.02f)
+            position = Position(y = 0.48f + bob, z = 0.02f),
             scale = Scale(1.0f, 1.05f, 0.90f)
         )
 

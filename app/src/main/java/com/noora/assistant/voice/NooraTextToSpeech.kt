@@ -8,6 +8,7 @@ class NooraTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
     private val tts = TextToSpeech(context.applicationContext, this)
     private var ready = false
     private var onStatus: ((String) -> Unit)? = null
+    private var onStarted: (() -> Unit)? = null
     private var onCompleted: (() -> Unit)? = null
 
     override fun onInit(status: Int) {
@@ -26,6 +27,10 @@ class NooraTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
     }
 
     fun isReady(): Boolean = ready
+
+    fun setStartListener(listener: () -> Unit) {
+        onStarted = listener
+    }
 
     fun setCompletionListener(listener: () -> Unit) {
         onCompleted = listener
@@ -55,15 +60,20 @@ class NooraTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-                override fun onStart(utteranceId: String?) = Unit
+                override fun onStart(utteranceId: String?) {
+                    if (utteranceId == "NOORA_RESPONSE") onStarted?.invoke()
+                }
+
                 override fun onDone(utteranceId: String?) {
                     if (utteranceId == "NOORA_RESPONSE") onCompleted?.invoke()
                 }
+
                 override fun onError(utteranceId: String?) {
                     if (utteranceId == "NOORA_RESPONSE") onCompleted?.invoke()
                 }
             })
         }
+
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "NOORA_RESPONSE")
     }
 

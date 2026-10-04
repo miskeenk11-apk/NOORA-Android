@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.widget.*
+import android.widget.FrameLayout
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
@@ -182,7 +183,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMenu() {
-        val popup=PopupMenu(this,findViewById<NooraAvatarView>(avatar.id.takeIf{it!=0} ?: android.R.id.content))
+        val popup=PopupMenu(this,avatar)
         popup.menu.add("NOORA")
         popup.menu.add("VOICE / ASK")
         popup.menu.add("SETTINGS")

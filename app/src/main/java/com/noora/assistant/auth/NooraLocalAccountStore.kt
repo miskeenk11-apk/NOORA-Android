@@ -12,6 +12,7 @@ class NooraLocalAccountStore(context: Context) {
             .putString("email", email.trim().lowercase())
             .putString("password_hash", hash(password))
             .putBoolean("verified", false)
+            .putBoolean("first_greeting_done", false)
             .apply()
         return true
     }
@@ -23,6 +24,8 @@ class NooraLocalAccountStore(context: Context) {
     fun verifyDevice() { prefs.edit().putBoolean("verified", true).apply() }
     fun isVerified(): Boolean = prefs.getBoolean("verified", false)
     fun hasAccount(): Boolean = prefs.getString("email", null) != null
+    fun firstGreetingDone(): Boolean = prefs.getBoolean("first_greeting_done", false)
+    fun markFirstGreetingDone() { prefs.edit().putBoolean("first_greeting_done", true).apply() }
     fun logout() { prefs.edit().putBoolean("verified", false).apply() }
 
     private fun hash(value: String): String =

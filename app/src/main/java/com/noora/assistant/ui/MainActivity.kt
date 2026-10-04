@@ -89,6 +89,13 @@ class MainActivity: AppCompatActivity() {
         speaker.setStatusListener { message -> runOnUiThread {
             if (message == "Voice ready") statusView.text = "NOORA\n\nReady.\nVoice: Ready"
         } }
+        speaker.setStartListener {
+            runOnUiThread {
+                voiceBusy = true
+                avatar.setState("Speaking")
+                statusView.text = "NOORA\n\nSpeaking..."
+            }
+        }
 
         // Opening greeting: show NOORA's adab/salute state, then greet by time and ask what the user would like.
         avatar.setState("Salute")
@@ -141,6 +148,11 @@ class MainActivity: AppCompatActivity() {
                         }
                     }
                 )
+            } else {
+                runOnUiThread {
+                    avatar.setState("Ready")
+                    statusView.text = "NOORA\n\nReady"
+                }
             }
         }
 

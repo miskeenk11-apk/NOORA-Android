@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import com.noora.assistant.security.NooraSessionAuthorization
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.ui.platform.ComposeView
 import com.noora.assistant.ai.GatewayAiClient
 import com.noora.assistant.ai.NooraConversationCoordinator
 import com.noora.assistant.core.NooraConnectivity
@@ -36,7 +37,7 @@ class MainActivity: AppCompatActivity() {
     private lateinit var wakeWord: com.noora.assistant.voice.NooraWakeWordEngine
     private lateinit var speaker: NooraTextToSpeech
     private lateinit var coordinator: NooraConversationCoordinator
-    private lateinit var avatar: NooraAvatarView
+    private lateinit var avatar: Noora3DPlaceholderView
     private lateinit var statusView: TextView
     private lateinit var moreButton: ImageButton
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
@@ -57,29 +58,7 @@ class MainActivity: AppCompatActivity() {
             text = "NOORA\n\nReady.\nMode: ${NooraConnectivity(this@MainActivity).mode()}"
         }
 
-        avatar = NooraAvatarView(this) { action ->
-            when (action) {
-                NooraAvatarView.Action.VOICE -> {
-                    if (continuousConversation) {
-                        continuousConversation = false
-                        listeningRestartPending = false
-                        voiceBusy = false
-                        mainHandler.removeCallbacksAndMessages(null)
-                        if (::listener.isInitialized) listener.cancel()
-                        statusView.text = "NOORA\n\nReady"
-                        avatar.setState("Ready")
-                    } else if (::listener.isInitialized) {
-                        if (wakeWordEnabled) wakeWord.stop()
-                        continuousConversation = true
-                        listeningRestartPending = false
-                        startListening(statusView)
-                    }
-                }
-                NooraAvatarView.Action.SETTINGS -> {
-                    if (::moreButton.isInitialized) moreButton.performClick()
-                }
-                NooraAvatarView.Action.EXIT -> finishAndRemoveTask()
-            }
+        avatar = Noora3DPlaceholderView(this).apply {
         }.apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 420)
             setState("Ready")

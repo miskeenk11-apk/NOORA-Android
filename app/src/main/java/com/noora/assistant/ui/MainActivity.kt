@@ -145,7 +145,7 @@ class MainActivity: AppCompatActivity() {
         }
 
         val gateway = GatewayAiClient(
-            gatewayUrl = "https://YOUR-NOORA-GATEWAY.example.com",
+            gatewayUrl = "https://noora-gateway-stc7.vercel.app",
             gatewayToken = null
         )
 

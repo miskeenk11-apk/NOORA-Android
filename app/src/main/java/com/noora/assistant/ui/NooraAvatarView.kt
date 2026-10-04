@@ -2,109 +2,98 @@ package com.noora.assistant.ui
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.RectF
+import android.graphics.*
 import android.view.MotionEvent
 import android.view.View
-import android.view.animation.DecelerateInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
 import com.noora.assistant.R
 
-/**
- * Full-screen NOORA visual surface.
- * The NOORA artwork remains the visual base. Existing setState() behavior is preserved.
- * Visible Voice / Settings / Exit artwork is backed by real touch zones.
- */
-class NooraAvatarView(
-    context: Context,
-    private val onAction: (Action) -> Unit = {}
-) : View(context) {
-
-    enum class Action { VOICE, SETTINGS, EXIT }
-
-    private val nooraImage: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.noora_main)
-    private val destination = RectF()
+class NooraAvatarView(context: Context, private val onAction: (Action) -> Unit = {}) : View(context) {
+    enum class Action { VOICE, NOORA, SETTINGS, EXIT }
+    private val image: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.noora_main)
+    private val rect = RectF()
+    private val phone = RectF()
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var state = "Ready"
-    private var motion = 0f
+    private var phase = 0f
     private var animator: ValueAnimator? = null
 
     fun setState(value: String) {
         state = value
-        startMotionForState(value)
+        animator?.cancel()
+        animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = when (value.lowercase()) {
+                "speaking" -> 260L
+                "listening" -> 850L
+                "thinking", "reading" -> 1050L
+                "salute" -> 700L
+                else -> 1800L
+            }
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener { phase = it.animatedValue as Float; invalidate() }
+            start()
+        }
         invalidate()
     }
 
-    private fun startMotionForState(value: String) {
-        animator?.cancel()
-
-        val amplitude = when {
-            value.equals("Speaking", true) -> 0.012f
-            value.equals("Listening", true) -> 0.008f
-            value.equals("Thinking", true) -> 0.006f
-            value.equals("Salute", true) -> 0.014f
-            else -> 0.003f
-        }
-
-        animator = ValueAnimator.ofFloat(-amplitude, amplitude).apply {
-            duration = if (value.equals("Speaking", true)) 420L else 1600L
-            repeatMode = ValueAnimator.REVERSE
-            repeatCount = ValueAnimator.INFINITE
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { animation ->
-                motion = animation.animatedValue as Float
-                invalidate()
-            }
-            start()
-        }
-    }
-
     override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
+        canvas.drawColor(Color.BLACK)
+        if (width <= 0 || height <= 0 || image.width <= 0) return
+        val scale = maxOf(width.toFloat() / image.width, height.toFloat() / image.height)
+        val w = image.width * scale
+        val h = image.height * scale
+        val p = kotlin.math.sin(phase * Math.PI).toFloat()
+        val yMove = when (state.lowercase()) {
+            "speaking" -> 5f * p
+            "listening" -> 3f * p
+            "thinking", "reading" -> 2f * p
+            "salute" -> -7f * p
+            else -> 1.5f * p
+        }
+        rect.set((width-w)/2f, (height-h)/2f+yMove, (width+w)/2f, (height+h)/2f+yMove)
+        canvas.drawBitmap(image, null, rect, paint)
 
-        if (width <= 0 || height <= 0 || nooraImage.width <= 0 || nooraImage.height <= 0) return
+        if (state.equals("Thinking", true) || state.equals("Reading", true)) {
+            val cx = width * .52f
+            val cy = height * .70f + 5f*p
+            phone.set(cx-42f, cy-72f, cx+42f, cy+72f)
+            paint.style = Paint.Style.FILL
+            paint.color = Color.argb(235,18,22,30)
+            canvas.drawRoundRect(phone,18f,18f,paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 3f
+            paint.color = Color.argb(210,120,190,255)
+            canvas.drawRoundRect(phone,18f,18f,paint)
+            paint.style = Paint.Style.FILL
+            paint.color = Color.WHITE
+            canvas.drawCircle(cx,cy+59f,4f,paint)
+            paint.color = Color.argb(180,120,190,255)
+            canvas.drawRoundRect(cx-28f,cy-38f,cx+28f,cy-30f,4f,4f,paint)
+            canvas.drawRoundRect(cx-28f,cy-16f,cx+18f,cy-8f,4f,4f,paint)
+        }
 
-        val baseScale = maxOf(
-            width.toFloat() / nooraImage.width.toFloat(),
-            height.toFloat() / nooraImage.height.toFloat()
-        )
-        val scale = baseScale * (1f + motion)
-        val drawWidth = nooraImage.width * scale
-        val drawHeight = nooraImage.height * scale
-        val left = (width - drawWidth) / 2f
-        val top = (height - drawHeight) / 2f
-
-        destination.set(left, top, left + drawWidth, top + drawHeight)
-        canvas.drawBitmap(nooraImage, null, destination, null)
+        if (state.equals("Speaking", true)) {
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 4f
+            paint.color = Color.argb(120,150,210,255)
+            canvas.drawCircle(width*.5f,height*.48f,70f+8f*p,paint)
+        }
+        paint.style = Paint.Style.FILL
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action != MotionEvent.ACTION_UP) return true
-
-        val x = event.x / width.toFloat()
-        val y = event.y / height.toFloat()
-
+        val x=event.x/width; val y=event.y/height
         when {
-            x in 0.02f..0.20f && y in 0.62f..0.77f -> {
-                onAction(Action.VOICE)
-                return true
-            }
-            x in 0.02f..0.20f && y in 0.76f..0.88f -> {
-                onAction(Action.SETTINGS)
-                return true
-            }
-            x in 0.02f..0.20f && y >= 0.88f -> {
-                onAction(Action.EXIT)
-                return true
-            }
+            x in .02f.. .22f && y in .62f.. .74f -> onAction(Action.VOICE)
+            x in .02f.. .22f && y in .74f.. .83f -> onAction(Action.NOORA)
+            x in .02f.. .22f && y in .83f.. .91f -> onAction(Action.SETTINGS)
+            x in .02f.. .22f && y > .91f -> onAction(Action.EXIT)
         }
-
         return true
     }
 
-    override fun onDetachedFromWindow() {
-        animator?.cancel()
-        animator = null
-        super.onDetachedFromWindow()
-    }
+    override fun onDetachedFromWindow() { animator?.cancel(); animator=null; super.onDetachedFromWindow() }
 }

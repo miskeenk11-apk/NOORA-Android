@@ -17,5 +17,8 @@ jobs:
       - uses: android-actions/setup-android@v3
       - name: Build debug APK
         run: |
-          chmod +x ./gradlew || true
-          if [ -x "./gradlew" ]; then ./gradlew assembleDebug; else gradle assembleDebug; fi
+          set -e
+          GRADLE_VERSION=8.7
+          curl -L --fail -o /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
+          unzip -q /tmp/gradle.zip -d /tmp/gradle
+          /tmp/gradle/gradle-${GRADLE_VERSION}/bin/gradle assembleDebug

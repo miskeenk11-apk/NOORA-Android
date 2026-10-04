@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var listener: NooraSpeechRecognizer
     private lateinit var coordinator: NooraConversationCoordinator
     private val handler=Handler(Looper.getMainLooper())
-    private var listening=false
+    private var listening=false\n    private var conversationActive=false
     private var authScreen: LinearLayout?=null
     private var gatewayUrl=""
 
@@ -109,7 +109,7 @@ class MainActivity : AppCompatActivity() {
                 NooraAvatarView.Action.VOICE -> startListening()
                 NooraAvatarView.Action.NOORA -> { avatar.setState("Ready"); startListening() }
                 NooraAvatarView.Action.SETTINGS -> showMenu()
-                NooraAvatarView.Action.EXIT -> finishAndRemoveTask()
+                NooraAvatarView.Action.EXIT -> { conversationActive=false; finishAndRemoveTask() }
             }
         }
         avatar.setState("Ready")
@@ -139,7 +139,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(root)
 
         permissions.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
-        if(!account.firstGreetingDone()){
+        conversationActive=true\n        if(!account.firstGreetingDone()){
             avatar.setState("Salute")
             handler.postDelayed({
                 speaker.speak(greeting(),"en")
@@ -193,7 +193,7 @@ class MainActivity : AppCompatActivity() {
                 "NOORA"->avatar.setState("Ready")
                 "VOICE / ASK"->startListening()
                 "SETTINGS"->showSettings()
-                "LOG OUT"->{ account.logout(); listener.cancel(); speaker.stop(); showAuth() }
+                "LOG OUT"->{ conversationActive=false; account.logout(); listener.cancel(); speaker.stop(); showAuth() }
             }
             true
         }

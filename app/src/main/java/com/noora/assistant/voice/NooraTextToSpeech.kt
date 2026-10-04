@@ -2,71 +2,38 @@ package com.noora.assistant.voice
 
 import android.content.Context
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 
 class NooraTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
     private val tts = TextToSpeech(context.applicationContext, this)
-    private var ready = false
-    private var onStatus: ((String) -> Unit)? = null
-    private var onCompleted: (() -> Unit)? = null
+    private var ready=false
+    private var status:((String)->Unit)?=null
+    private var completed:(()->Unit)?=null
+    private var speaking:((Boolean)->Unit)?=null
 
-    override fun onInit(status: Int) {
-        ready = status == TextToSpeech.SUCCESS
-        if (ready) {
-            tts.setSpeechRate(0.95f)
-            onStatus?.invoke("Voice ready")
-        } else {
-            onStatus?.invoke("Voice engine unavailable")
-        }
+    override fun onInit(result:Int) {
+        ready=result==TextToSpeech.SUCCESS
+        if(ready){ tts.setSpeechRate(.95f); status?.invoke("Voice ready") }
+        else status?.invoke("Voice engine unavailable")
     }
+    fun setStatusListener(v:(String)->Unit){ status=v; if(ready)v("Voice ready") }
+    fun setCompletionListener(v:()->Unit){ completed=v }
+    fun setSpeakingListener(v:(Boolean)->Unit){ speaking=v }
+    fun isReady()=ready
 
-    fun setStatusListener(listener: (String) -> Unit) {
-        onStatus = listener
-        if (ready) listener("Voice ready")
+    fun speak(text:String, language:String="en") {
+        if(!ready || text.isBlank()) return
+        val requested=if(language.lowercase().startsWith("ur")) Locale("ur","PK") else Locale.US
+        val locale=if(tts.isLanguageAvailable(requested)>=TextToSpeech.LANG_AVAILABLE) requested else Locale.US
+        tts.setLanguage(locale)
+        tts.setOnUtteranceProgressListener(object:UtteranceProgressListener(){
+            override fun onStart(id:String?){ if(id=="NOORA_RESPONSE") speaking?.invoke(true) }
+            override fun onDone(id:String?){ if(id=="NOORA_RESPONSE"){speaking?.invoke(false);completed?.invoke()} }
+            override fun onError(id:String?, code:Int){ if(id=="NOORA_RESPONSE"){speaking?.invoke(false);completed?.invoke()} }
+        })
+        tts.speak(text,TextToSpeech.QUEUE_FLUSH,null,"NOORA_RESPONSE")
     }
-
-    fun isReady(): Boolean = ready
-
-    fun setCompletionListener(listener: () -> Unit) {
-        onCompleted = listener
-    }
-
-    fun speak(text: String, language: String = "en") {
-        if (!ready || text.isBlank()) return
-
-        val requested = if (language.lowercase().startsWith("ur")) {
-            Locale("ur", "PK")
-        } else {
-            Locale.US
-        }
-
-        val support = tts.isLanguageAvailable(requested)
-        val locale = if (support >= TextToSpeech.LANG_AVAILABLE) {
-            requested
-        } else {
-            Locale.US
-        }
-
-        val result = tts.setLanguage(locale)
-        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-            tts.setLanguage(Locale.US)
-            onStatus?.invoke("Requested voice language unavailable; using English voice")
-        }
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-                override fun onStart(utteranceId: String?) = Unit
-                override fun onDone(utteranceId: String?) {
-                    if (utteranceId == "NOORA_RESPONSE") onCompleted?.invoke()
-                }
-                override fun onError(utteranceId: String?) {
-                    if (utteranceId == "NOORA_RESPONSE") onCompleted?.invoke()
-                }
-            })
-        }
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "NOORA_RESPONSE")
-    }
-
-    fun stop() = tts.stop()
-    fun shutdown() = tts.shutdown()
+    fun stop(){tts.stop();speaking?.invoke(false)}
+    fun shutdown(){tts.stop();tts.shutdown()}
 }

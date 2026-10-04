@@ -55,7 +55,7 @@ class NooraAvatarView(context: Context, private val onAction: (Action) -> Unit =
         rect.set((width-w)/2f, (height-h)/2f+yMove, (width+w)/2f, (height+h)/2f+yMove)
         canvas.drawBitmap(image, null, rect, paint)
 
-        if (state.equals("Thinking", true) || state.equals("Reading", true)) {
+        // NOORA holds/uses a smartphone as part of the main character interaction.\n        run {
             val cx = width * .52f
             val cy = height * .70f + 5f*p
             phone.set(cx-42f, cy-72f, cx+42f, cy+72f)
@@ -74,7 +74,7 @@ class NooraAvatarView(context: Context, private val onAction: (Action) -> Unit =
             canvas.drawRoundRect(cx-28f,cy-16f,cx+18f,cy-8f,4f,4f,paint)
         }
 
-        if (state.equals("Speaking", true)) {
+        // Small state label keeps the voice-first UI understandable without becoming a chat screen.\n        paint.style = Paint.Style.FILL\n        paint.textSize = 24f\n        paint.color = Color.argb(210,235,245,255)\n        canvas.drawText(state, 28f, 52f, paint)\n\n        drawControl(canvas, "EXIT", 0.03f, 0.90f)\n        drawControl(canvas, "NOORA", 0.03f, 0.82f)\n        drawControl(canvas, "SETTINGS", 0.03f, 0.74f)\n\n        if (state.equals("Speaking", true)) {
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 4f
             paint.color = Color.argb(120,150,210,255)
@@ -83,7 +83,7 @@ class NooraAvatarView(context: Context, private val onAction: (Action) -> Unit =
         paint.style = Paint.Style.FILL
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
+    private fun drawControl(canvas: Canvas, label: String, x: Float, y: Float) {\n        val left=width*x; val top=height*y; val right=left+150f; val bottom=top+52f\n        paint.style=Paint.Style.FILL; paint.color=Color.argb(150,8,18,28)\n        canvas.drawRoundRect(left,top,right,bottom,18f,18f,paint)\n        paint.style=Paint.Style.STROKE; paint.strokeWidth=2f; paint.color=Color.argb(130,150,210,255)\n        canvas.drawRoundRect(left,top,right,bottom,18f,18f,paint)\n        paint.style=Paint.Style.FILL; paint.textSize=18f; paint.color=Color.WHITE\n        canvas.drawText(label,left+16f,top+33f,paint)\n    }\n\n    override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action != MotionEvent.ACTION_UP) return true
         val x=event.x/width; val y=event.y/height
         when {

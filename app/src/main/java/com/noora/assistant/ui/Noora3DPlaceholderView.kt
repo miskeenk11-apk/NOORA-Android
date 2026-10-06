@@ -2,7 +2,6 @@ package com.noora.assistant.ui
 
 import android.content.Context
 import android.graphics.Color
-import android.view.View
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -12,186 +11,92 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.unit.dp
 import io.github.sceneview.SceneView
-import io.github.sceneview.node.CubeNode
-import io.github.sceneview.node.CylinderNode
-import io.github.sceneview.node.SphereNode
-import io.github.sceneview.node.LightNode
-import io.github.sceneview.node.Node
+import io.github.sceneview.model.rememberModelInstance
+import io.github.sceneview.node.ModelNode
 import io.github.sceneview.math.Position
 import io.github.sceneview.math.Rotation
-import io.github.sceneview.math.Scale
-import io.github.sceneview.math.Size
-import io.github.sceneview.utils.colorOf
-import com.google.android.filament.LightManager
+import io.github.sceneview.rememberCameraManipulator
+import io.github.sceneview.rememberEngine
+import io.github.sceneview.rememberModelLoader
 
 /**
- * Temporary 3D NOORA implementation.
- * This is deliberately procedural so the 3D pipeline can be tested before the
- * final rigged GLB arrives. The same state API will drive the final character.
+ * NOORA avatar surface.
+ *
+ * The existing state API is preserved so MainActivity and the voice/security
+ * features do not need to change. The real VRM/GLB is loaded from:
+ * assets/models/viverse_avatar_model_214366.glb
+ *
+ * If the binary asset is not bundled yet, the view stays a safe black surface
+ * instead of changing any existing NOORA functionality.
  */
 class Noora3DPlaceholderView(context: Context) : ComposeView(context) {
-    private var currentState by mutableStateOf("Ready")
+    private var currentState = "Ready"
 
     init {
         setBackgroundColor(Color.BLACK)
-        setContent {
-            Noora3DPlaceholderScene(currentState)
-        }
+        setContent { NooraVrmScene(currentState) }
     }
 
     fun setState(value: String) {
         currentState = value
+        setContent { NooraVrmScene(currentState) }
     }
 }
 
 @Composable
-private fun Noora3DPlaceholderScene(state: String) {
-    val transition = rememberInfiniteTransition(label = "noora3d")
+private fun NooraVrmScene(state: String) {
+    val transition = rememberInfiniteTransition(label = "nooraVrmMotion")
+
     val bob by transition.animateFloat(
-        initialValue = -0.018f,
-        targetValue = 0.018f,
+        initialValue = -0.012f,
+        targetValue = 0.012f,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = if (state.equals("Speaking", true)) 520 else 1800,
+                durationMillis = if (state.equals("Speaking", true)) 420 else 1500,
                 easing = LinearEasing
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "bodyBob"
+        label = "voiceBodyMotion"
     )
 
-    val blink by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.15f,
+    val sway by transition.animateFloat(
+        initialValue = -1.2f,
+        targetValue = 1.2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(120, easing = LinearEasing),
+            animation = tween(
+                durationMillis = if (state.equals("Listening", true)) 1100 else 1800,
+                easing = LinearEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "blink"
+        label = "idleSway"
     )
 
-    val engine = io.github.sceneview.rememberEngine()
-    val materialLoader = io.github.sceneview.rememberMaterialLoader(engine)
-
-    val skin = remember(materialLoader) {
-        materialLoader.createColorInstance(colorOf(ComposeColor(0.82f, 0.62f, 0.48f, 1f)))
-    }
-    val dress = remember(materialLoader) {
-        materialLoader.createColorInstance(colorOf(ComposeColor(0.12f, 0.32f, 0.82f, 1f)))
-    }
-    val hijab = remember(materialLoader) {
-        materialLoader.createColorInstance(colorOf(ComposeColor(0.08f, 0.20f, 0.58f, 1f)))
-    }
-    val white = remember(materialLoader) {
-        materialLoader.createColorInstance(colorOf(ComposeColor.White))
-    }
-    val eye = remember(materialLoader) {
-        materialLoader.createColorInstance(colorOf(ComposeColor(0.08f, 0.28f, 0.95f, 1f)))
-    }
-    val mouth = remember(materialLoader) {
-        materialLoader.createColorInstance(colorOf(ComposeColor(0.18f, 0.02f, 0.04f, 1f)))
-    }
+    val engine = rememberEngine()
+    val modelLoader = rememberModelLoader(engine)
+    val model = rememberModelInstance(
+        modelLoader,
+        "models/viverse_avatar_model_214366.glb"
+    )
 
     SceneView(
         modifier = Modifier.fillMaxSize(),
         engine = engine,
-        modelLoader = io.github.sceneview.rememberModelLoader(engine),
-        cameraManipulator = io.github.sceneview.rememberCameraManipulator(
-            orbitRadius = 3.1f
-        )
+        modelLoader = modelLoader,
+        cameraManipulator = rememberCameraManipulator(orbitRadius = 2.8f)
     ) {
-        LightNode(
-            type = LightManager.Type.SUN,
-            apply = {
-                intensity(100_000f)
-                castShadows(true)
-            }
-        )
-
-        // Body / dress
-        CylinderNode(
-            radius = 0.48f,
-            height = 1.35f,
-            materialInstance = dress,
-            position = Position(y = -0.55f + bob)
-        )
-
-        // Head + hijab
-        SphereNode(
-            radius = 0.42f,
-            materialInstance = skin,
-            position = Position(y = 0.42f + bob)
-        )
-        SphereNode(
-            radius = 0.50f,
-            materialInstance = hijab,
-            position = Position(y = 0.48f + bob, z = 0.02f),
-            scale = Scale(1.0f, 1.05f, 0.90f)
-        )
-
-        // Eyes
-        SphereNode(
-            radius = 0.055f,
-            materialInstance = eye,
-            position = Position(x = -0.16f, y = 0.47f + bob, z = -0.385f),
-            scale = Scale(1f, blink, 0.35f)
-        )
-        SphereNode(
-            radius = 0.055f,
-            materialInstance = eye,
-            position = Position(x = 0.16f, y = 0.47f + bob, z = -0.385f),
-            scale = Scale(1f, blink, 0.35f)
-        )
-
-        // Mouth opens during speaking.
-        SphereNode(
-            radius = if (state.equals("Speaking", true)) 0.075f else 0.035f,
-            materialInstance = mouth,
-            position = Position(y = 0.25f + bob, z = -0.395f),
-            scale = Scale(1.25f, if (state.equals("Speaking", true)) 1.5f else 0.45f, 0.35f)
-        )
-
-        // Arms
-        CylinderNode(
-            radius = 0.09f,
-            height = 0.95f,
-            materialInstance = dress,
-            position = Position(x = -0.58f, y = -0.48f + bob),
-            rotation = Rotation(z = 0.20f)
-        )
-        CylinderNode(
-            radius = 0.09f,
-            height = 0.95f,
-            materialInstance = dress,
-            position = Position(x = 0.58f, y = -0.48f + bob),
-            rotation = Rotation(z = -0.20f)
-        )
-
-        // Hands
-        SphereNode(
-            radius = 0.12f,
-            materialInstance = skin,
-            position = Position(x = -0.67f, y = -0.98f + bob)
-        )
-        SphereNode(
-            radius = 0.12f,
-            materialInstance = skin,
-            position = Position(x = 0.67f, y = -0.98f + bob)
-        )
-
-        // Simple base/feet.
-        CubeNode(
-            size = Size(1.55f, 0.10f, 0.70f),
-            materialInstance = hijab,
-            position = Position(y = -1.28f)
-        )
+        model?.let {
+            ModelNode(
+                modelInstance = it,
+                autoAnimate = false,
+                scaleToUnits = 1.65f,
+                position = Position(y = bob),
+                rotation = Rotation(y = sway)
+            )
+        }
     }
 }

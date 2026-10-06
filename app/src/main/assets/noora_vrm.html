@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05070b}canvas{display:block;width:100%;height:100%}#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font:16px sans-serif;background:#05070b;z-index:2}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"}}</script>
+</head><body><div id="loading">NOORA is loading...</div>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
+const PARTS=9, PART_NAMES=Array.from({length:PARTS},(_,i)=>"noora_avatar.part"+String(i+1).padStart(2,"0"));
+let vrm=null,state="Ready",pendingState="Ready",last=performance.now(),blinkTimer=1.5,mouthTimer=0,gazeTimer=1,mouthIndex=0;
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x05070b);
+const camera=new THREE.PerspectiveCamera(28,innerWidth/innerHeight,.05,100); camera.position.set(0,1.35,4.3); camera.lookAt(0,1.25,0);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"}); renderer.setPixelRatio(Math.min(devicePixelRatio,1.75)); renderer.setSize(innerWidth,innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x202530,2.1)); const key=new THREE.DirectionalLight(0xffffff,2.5); key.position.set(1.5,3,4); scene.add(key); const fill=new THREE.DirectionalLight(0x8fb7ff,1); fill.position.set(-2,1,2); scene.add(fill);
+function b64ToBytes(b64){const raw=atob(b64),out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out}
+async function loadAvatarBytes(){let all="";for(const n of PART_NAMES){const r=await fetch(n);if(!r.ok)throw new Error("Missing avatar part: "+n);all+=(await r.text()).trim()}return b64ToBytes(all).buffer}
+async function loadAvatar(){const buffer=await loadAvatarBytes(),loader=new GLTFLoader();loader.register(p=>new VRMLoaderPlugin(p));return await new Promise((resolve,reject)=>loader.parse(buffer,"",g=>resolve(g.userData.vrm),reject))}
+function expr(n,v){if(!vrm?.expressionManager)return;try{vrm.expressionManager.setValue(n,v)}catch(e){}}
+function resetFace(){["blink","blinkLeft","blinkRight","happy","angry","sad","relaxed","aa","ih","ou","ee","oh","lookLeft","lookRight","lookUp","lookDown"].forEach(n=>expr(n,0))}
+function setFace(s){resetFace();if(s==="Happy")expr("happy",.85);else if(s==="Angry")expr("angry",.85);else if(s==="Sad")expr("sad",.85);else if(s==="Relaxed")expr("relaxed",.75)}
+function bone(n){try{return vrm?.humanoid?.getNormalizedBoneNode(n)||null}catch(e){return null}}
+function applyBody(t){const h=bone("head"),n=bone("neck"),ru=bone("rightUpperArm"),rl=bone("rightLowerArm"),lu=bone("leftUpperArm"),ll=bone("leftLowerArm"),idle=Math.sin(t*1.15)*.025;if(h){h.rotation.y=idle;h.rotation.x=Math.sin(t*.75)*.012}if(n)n.rotation.y=idle*.45;if(lu)lu.rotation.z=Math.sin(t*.8)*.025;if(ll)ll.rotation.z=Math.sin(t*.8+.5)*.02;if(state==="Salute"){if(ru){ru.rotation.z=-1.35+Math.sin(t*3.2)*.08;ru.rotation.x=-.35}if(rl){rl.rotation.z=-.25+Math.sin(t*3.2)*.12;rl.rotation.x=-.35}}else{if(ru){ru.rotation.z=Math.sin(t*.9+1)*.025;ru.rotation.x=0}if(rl){rl.rotation.z=Math.sin(t*.9+1.3)*.02;rl.rotation.x=0}}}
+function setState(s){pendingState=s||"Ready";if(!vrm)return;state=pendingState;setFace(state)}
+window.nooraSetState=setState; window.nooraExpression=(n,v)=>expr(n,Number(v)||0);
+function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05),t=now/1000;last=now;if(vrm){if(state!==pendingState)setState(pendingState);blinkTimer-=dt;if(blinkTimer<=0){expr("blink",1);setTimeout(()=>expr("blink",0),120);blinkTimer=2.8+Math.random()*3.5}gazeTimer-=dt;if(gazeTimer<=0){gazeTimer=2+Math.random()*2.5;const g=["lookLeft","lookRight","lookUp","lookDown"][Math.floor(Math.random()*4)];expr(g,.18);setTimeout(()=>expr(g,0),500)}if(state==="Speaking"){mouthTimer-=dt;if(mouthTimer<=0){["aa","ih","ou","ee","oh"].forEach(n=>expr(n,0));expr(["aa","ih","ou","ee","oh"][mouthIndex++%5],.65+Math.random()*.3);mouthTimer=.085+Math.random()*.075}}else["aa","ih","ou","ee","oh"].forEach(n=>expr(n,0));applyBody(t);vrm.update(dt)}renderer.render(scene,camera)}
+animate(performance.now()); addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+loadAvatar().then(m=>{vrm=m;VRMUtils.rotateVRM0(vrm);scene.add(vrm.scene);const box=new THREE.Box3().setFromObject(vrm.scene),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),scale=1.75/Math.max(size.y,.01);vrm.scene.scale.setScalar(scale);vrm.scene.position.set(-center.x*scale,-center.y*scale,0);document.getElementById("loading").style.display="none";setState(pendingState)}).catch(e=>{document.getElementById("loading").textContent="NOORA avatar could not load";console.error(e)});
+</script></body></html>

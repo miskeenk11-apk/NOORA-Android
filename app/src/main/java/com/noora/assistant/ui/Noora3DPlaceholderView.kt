@@ -11,6 +11,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import io.github.sceneview.SceneView
@@ -25,24 +27,24 @@ import io.github.sceneview.rememberModelLoader
 /**
  * NOORA avatar surface.
  *
- * The existing state API is preserved so MainActivity and the voice/security
- * features do not need to change. The real VRM/GLB is loaded from:
- * assets/models/viverse_avatar_model_214366.glb
+ * MainActivity's existing state API is preserved. The VRM 0.x file is a GLB
+ * container, so the packaged test asset is intentionally addressed as .glb.
  *
- * If the binary asset is not bundled yet, the view stays a safe black surface
- * instead of changing any existing NOORA functionality.
+ * Expected asset:
+ * assets/models/viverse_avatar_model_214366.glb
  */
 class Noora3DPlaceholderView(context: Context) : ComposeView(context) {
-    private var currentState = "Ready"
+    private var currentState by mutableStateOf("Ready")
 
     init {
         setBackgroundColor(Color.BLACK)
-        setContent { NooraVrmScene(currentState) }
+        setContent {
+            NooraVrmScene(state = currentState)
+        }
     }
 
     fun setState(value: String) {
         currentState = value
-        setContent { NooraVrmScene(currentState) }
     }
 }
 
@@ -50,12 +52,20 @@ class Noora3DPlaceholderView(context: Context) : ComposeView(context) {
 private fun NooraVrmScene(state: String) {
     val transition = rememberInfiniteTransition(label = "nooraVrmMotion")
 
+    val speaking = state.equals("Speaking", true)
+    val listening = state.equals("Listening", true)
+    val salute = state.equals("Salute", true)
+
     val bob by transition.animateFloat(
         initialValue = -0.012f,
         targetValue = 0.012f,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = if (state.equals("Speaking", true)) 420 else 1500,
+                durationMillis = when {
+                    speaking -> 420
+                    listening -> 900
+                    else -> 1500
+                },
                 easing = LinearEasing
             ),
             repeatMode = RepeatMode.Reverse
@@ -64,11 +74,16 @@ private fun NooraVrmScene(state: String) {
     )
 
     val sway by transition.animateFloat(
-        initialValue = -1.2f,
-        targetValue = 1.2f,
+        initialValue = if (salute) -2.5f else -1.0f,
+        targetValue = if (salute) 2.5f else 1.0f,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = if (state.equals("Listening", true)) 1100 else 1800,
+                durationMillis = when {
+                    salute -> 650
+                    listening -> 1100
+                    speaking -> 850
+                    else -> 1800
+                },
                 easing = LinearEasing
             ),
             repeatMode = RepeatMode.Reverse
@@ -78,6 +93,8 @@ private fun NooraVrmScene(state: String) {
 
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
+
+    // SceneView 4.52.0 loads standard GLB/GLTF assets from src/main/assets.
     val model = rememberModelInstance(
         modelLoader,
         "models/viverse_avatar_model_214366.glb"
@@ -89,9 +106,9 @@ private fun NooraVrmScene(state: String) {
         modelLoader = modelLoader,
         cameraManipulator = rememberCameraManipulator(orbitRadius = 2.8f)
     ) {
-        model?.let {
+        model?.let { instance ->
             ModelNode(
-                modelInstance = it,
+                modelInstance = instance,
                 autoAnimate = false,
                 scaleToUnits = 1.65f,
                 position = Position(y = bob),

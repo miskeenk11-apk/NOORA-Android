@@ -37,7 +37,7 @@ class MainActivity: AppCompatActivity() {
     private lateinit var wakeWord: com.noora.assistant.voice.NooraWakeWordEngine
     private lateinit var speaker: NooraTextToSpeech
     private lateinit var coordinator: NooraConversationCoordinator
-    private lateinit var avatar: Noora3DPlaceholderView
+    private lateinit var avatar: NooraVrmaView
     private lateinit var statusView: TextView
     private lateinit var moreButton: ImageButton
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
@@ -58,8 +58,7 @@ class MainActivity: AppCompatActivity() {
             text = "NOORA\n\nReady.\nMode: ${NooraConnectivity(this@MainActivity).mode()}"
         }
 
-        avatar = Noora3DPlaceholderView(this).apply {
-        }.apply {
+        avatar = NooraVrmaView(this).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 420)
             setState("Ready")
         }
